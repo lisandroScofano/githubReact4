@@ -1,42 +1,61 @@
-import { useState } from "react";
-import { getInvoice } from "./services/getInvoice"
+import { useEffect, useState } from "react";
+import { getInvoice, calculateTotal } from "./services/getInvoice"
 import { ClientView } from "./components/ClientView";
 import { CompanyView } from "./components/CompanyView";
 import { InvoiceView } from "./components/InvoiceView";
 import { ListItemsView } from "./components/ListItemsView";
 import { TotalView } from "./components/TotalView";
+import { FormItemsView } from "./components/FormItemsView";
+
+const invoiceInitial = {
+    id: 0,
+    name: '',
+    client: {
+        name: '',
+        lastName: '',
+        address: {
+            country: '',
+            city: '',
+            street: '',
+            number: 0
+        },
+    },
+    company: {
+        name: '',
+        fiscalNumber: 0
+    },
+    items: [
+    ]
+}
 
 export const InvoiceApp = () => {
 
-    const invoice =  getInvoice();
-    console.log(invoice);
-    const { total, id, name, client, company, items: itemsInitial } = invoice;
-    const [formItemsState, setFormItemsState] = useState({
-        product: '',
-        price: '',
-        quantity: ''
-    })
-
-    const { product, price, quantity } = formItemsState;
-
-    const [items, setItems] = useState(itemsInitial);
+    const [activeForm, setActiveForm] = useState(false);
+    const [total, setTotal] = useState(0);
     const [counter, setCounter] = useState(4);
+    const [invoice, setInvoice] = useState(invoiceInitial);
+    const [items, setItems] = useState([]);
+    const { id, name, client, company } = invoice;
 
-    const onInputChange = ({ target: { name, value } }) => {
-        setFormItemsState({
-            ...formItemsState,
-            [name]: value
-        });
-    }
+    useEffect(() => {
+        const data = getInvoice();
+        console.log(data);
+        setInvoice(data);
+        setItems(data.items);
+    }, []);
 
-    const onInvoiceItemsSubmit = (event) => {
-        event.preventDefault();
 
-        if (product.trim().length <= 1) return;
-        if (price.trim().length <= 1) return;
-        if (isNaN(price.trim())) return;
-        if (quantity.trim().length < 1) return;
-        if (isNaN(quantity.trim())) return;
+
+    useEffect(() => {
+        // console.log('El counter cambio!')
+    }, [counter]);
+
+    useEffect(() => {
+        setTotal(calculateTotal(items));
+        // console.log('El items cambio!')
+    }, [items]);
+
+    const handlerAddItems = ({ product, price, quantity }) => {
 
         setItems([...items, {
             id: counter,
@@ -44,14 +63,18 @@ export const InvoiceApp = () => {
             price: +price.trim(),
             quantity: parseInt(quantity.trim(), 10)
         }]);
-        setFormItemsState({
-            product: '',
-            price: '',
-            quantity: ''
-        });
 
         setCounter(counter + 1);
     }
+
+    const handlerDeleteItem = (id) => {
+        setItems(items.filter(item => item.id !== id))
+    }
+
+
+    const onActiveForm = () => {
+        setActiveForm(!activeForm);
+    };
 
     return (
         <>
@@ -70,34 +93,10 @@ export const InvoiceApp = () => {
                                 <CompanyView title='Datos de la empresa' company={company} />
                             </div>
                         </div>
-                        <ListItemsView title='Productos de la Factura' items={items} />
+                        <ListItemsView title='Productos de la Factura' items={items} handlerDeleteItem={id => handlerDeleteItem(id)} />
                         <TotalView total={total} />
-                        <form className="w-50" onSubmit={event => onInvoiceItemsSubmit(event)}>
-                            <input
-                                type="text"
-                                name="product"
-                                value={product}
-                                placeholder="Producto"
-                                className="form-control m-3"
-                                onChange={event => onInputChange(event)} />
-                            <input
-                                type="text"
-                                name="price"
-                                value={price}
-                                placeholder="Precio"
-                                className="form-control m-3"
-                                onChange={onInputChange} />
-                            <input
-                                type="text"
-                                name="quantity"
-                                value={quantity}
-                                placeholder="Cantidad"
-                                className="form-control m-3"
-                                onChange={event => onInputChange(event)} />
-                            <button type="submit"
-                                className="btn btn-primary m-3">
-                                Nuevo Item</button>
-                        </form>
+                        <button className="btn btn-secondary" onClick={onActiveForm}>{!activeForm ? 'Agregar Item' : 'Ocultar Formulario'}</button>
+                        {!activeForm ? '' : <FormItemsView handler={(newItem) => handlerAddItems(newItem)} />}
                     </div>
                 </div>
             </div>
